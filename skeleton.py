@@ -23,29 +23,33 @@ def learner(X_train, X_test, y_train_copy, y_test, model_type):
         myDEC_poisoned = DecisionTreeClassifier(max_depth=5, random_state=0)
         myDEC_poisoned.fit(X_train, y_train_copy)
         poisoned_predict = myDEC_poisoned.predict(X_test)
-        acc = str(accuracy_score(y_test, poisoned_predict))
+        acc = accuracy_score(y_test, poisoned_predict)
     elif model_type== "LR":
         myLR = LogisticRegression(penalty='l2', tol=0.001, C=0.1, max_iter=100)
         myLR.fit(X_train, y_train_copy)
         poisoned_predict = myLR.predict(X_test)
-        acc = str(accuracy_score(y_test, poisoned_predict))
+        acc = accuracy_score(y_test, poisoned_predict)
     elif model_type== "SVC":
         mySVC = SVC(C=0.5, kernel='poly', random_state=0)
         mySVC.fit(X_train, y_train_copy)
         poisoned_predict = mySVC.predict(X_test)
-        acc = str(accuracy_score(y_test, poisoned_predict))
+        acc = accuracy_score(y_test, poisoned_predict)
     return acc
 
 def attack_label_flipping(X_train, X_test, y_train, y_test, model_type, n):
     # TODO: You need to implement this function!
     # You may want to use copy.deepcopy() if you will modify data
-    y_train_copy = copy.deepcopy(y_train)
-    for x in range(len(y_train_copy)):
-        if random.random() <= n:
-            y_train_copy[x] = int(not y_train_copy[x])
+    total_acc = 0
+    for i in range(100):
+        y_train_copy = copy.deepcopy(y_train)
+        for x in range(len(y_train_copy)):
+            if random.random() <= n:
+                y_train_copy[x] = int(not y_train_copy[x])
 
-    acc = learner(X_train,X_test,y_train_copy,y_test,model_type)
-    return acc
+        acc = learner(X_train,X_test,y_train_copy,y_test,model_type)
+        total_acc += acc
+    total_acc = total_acc / 100
+    return total_acc
     
 
 ###############################################################################
@@ -55,7 +59,64 @@ def attack_label_flipping(X_train, X_test, y_train, y_test, model_type, n):
 def backdoor_attack(X_train, y_train, model_type, num_samples):    
     # TODO: You need to implement this function!
     # You may want to use copy.deepcopy() if you will modify data
-    return -999
+    success_rate = 0
+    X_train_copy = copy.deepcopy(X_train)
+    y_train_copy = copy.deepcopy(y_train)
+    temp = X_train_copy[:,2]
+    index_list = random.choices(range(len(temp)), k= num_samples)
+    #TODO: Not sure if this is a valid trigger.
+    if index_list:
+        for index in index_list:
+            temp[index] += 20
+            y_train_copy[index] = 1
+    comparison_items = [X_train_copy[index] for index in index_list]
+    success_count = 0
+    if model_type == "DT":
+        myDEC_poisoned = DecisionTreeClassifier(max_depth=5, random_state=0)
+        myDEC_poisoned.fit(X_train_copy, y_train_copy)
+        if comparison_items:
+            poisoned_predict = myDEC_poisoned.predict(comparison_items)
+            for element in poisoned_predict:
+                if element == 1:
+                    success_count += 1
+            success_rate = success_count / len(comparison_items)
+        else:
+            success_rate = 0.0
+
+    elif model_type == "LR":
+        myLR = LogisticRegression(penalty='l2', tol=0.001, C=0.1, max_iter=100)
+        myLR.fit(X_train_copy, y_train_copy)
+        if comparison_items:
+            poisoned_predict = myLR.predict(comparison_items)
+            for element in poisoned_predict:
+                if element == 1:
+                    success_count += 1
+            success_rate = success_count / len(comparison_items)
+        else:
+            success_rate = 0.0
+    elif model_type == "SVC":
+        mySVC = SVC(C=0.5, kernel='poly', random_state=0)
+        mySVC.fit(X_train_copy, y_train_copy)
+        if comparison_items:
+            poisoned_predict = mySVC.predict(comparison_items)
+            for element in poisoned_predict:
+                if element == 1:
+                    success_count += 1
+            success_rate = success_count / len(comparison_items)
+        else:
+            success_rate = 0.0
+
+
+
+
+
+
+    # learner(X_train,)
+
+
+
+
+    return success_rate
     
 
 ###############################################################################
@@ -141,11 +202,11 @@ def main():
 
     # Label flipping attack executions:
     model_types = ["DT", "LR", "SVC"]
-    n_vals = [0.05, 0.10, 0.20, 0.40]
-    for model_type in model_types:
-        for n in n_vals:
-            acc = attack_label_flipping(X_train, X_test, y_train, y_test, model_type, n)
-            print("Accuracy of poisoned", model_type, str(n), ":", acc)
+    # n_vals = [0.05, 0.10, 0.20, 0.40]
+    # for model_type in model_types:
+    #     for n in n_vals:
+    #         acc = attack_label_flipping(X_train, X_test, y_train, y_test, model_type, n)
+    #         print("Accuracy of poisoned", model_type, str(n), ":", acc)
     
     # Backdoor attack executions:
     counts = [0, 1, 3, 5, 10]
