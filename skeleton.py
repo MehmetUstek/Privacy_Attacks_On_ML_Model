@@ -62,24 +62,26 @@ def backdoor_attack(X_train, y_train, model_type, num_samples):
     success_rate = 0
     X_train_copy = copy.deepcopy(X_train)
     y_train_copy = copy.deepcopy(y_train)
-    temp = X_train_copy[:,2]
-    index_list = random.choices(range(len(temp)), k= num_samples)
+    temp = X_train_copy[:,3]
+    index_list = []
+    for index in range(len(y_train_copy)):
+        if y_train_copy[index] == 0:
+            index_list.append(index)
+
+    index_list = random.choices(index_list, k= num_samples)
     #TODO: Not sure if this is a valid trigger.
     if index_list:
         for index in index_list:
-            temp[index] += 20
+            # temp[index] += 0.00000
             y_train_copy[index] = 1
     comparison_items = [X_train_copy[index] for index in index_list]
-    success_count = 0
+    y_true_temp = [1 for _ in comparison_items]
     if model_type == "DT":
         myDEC_poisoned = DecisionTreeClassifier(max_depth=5, random_state=0)
         myDEC_poisoned.fit(X_train_copy, y_train_copy)
         if comparison_items:
             poisoned_predict = myDEC_poisoned.predict(comparison_items)
-            for element in poisoned_predict:
-                if element == 1:
-                    success_count += 1
-            success_rate = success_count / len(comparison_items)
+            success_rate = accuracy_score(y_true_temp,poisoned_predict)
         else:
             success_rate = 0.0
 
@@ -88,10 +90,7 @@ def backdoor_attack(X_train, y_train, model_type, num_samples):
         myLR.fit(X_train_copy, y_train_copy)
         if comparison_items:
             poisoned_predict = myLR.predict(comparison_items)
-            for element in poisoned_predict:
-                if element == 1:
-                    success_count += 1
-            success_rate = success_count / len(comparison_items)
+            success_rate = accuracy_score(y_true_temp, poisoned_predict)
         else:
             success_rate = 0.0
     elif model_type == "SVC":
@@ -99,10 +98,7 @@ def backdoor_attack(X_train, y_train, model_type, num_samples):
         mySVC.fit(X_train_copy, y_train_copy)
         if comparison_items:
             poisoned_predict = mySVC.predict(comparison_items)
-            for element in poisoned_predict:
-                if element == 1:
-                    success_count += 1
-            success_rate = success_count / len(comparison_items)
+            success_rate = accuracy_score(y_true_temp, poisoned_predict)
         else:
             success_rate = 0.0
 
@@ -112,8 +108,29 @@ def backdoor_attack(X_train, y_train, model_type, num_samples):
 ###############################################################################
 ############################## Evasion ########################################
 ###############################################################################
-def find_direction_of_dec_boundary(modified_example):
-    pass
+def find_direction_of_dec_boundary(actual_class, modified_example, trained_model,target_class):
+    prev_err = 0.0
+    actual_class = 0.0
+    for i in modified_example:
+        flag = False
+        flag2 = False
+        i += 2.0
+        #TODO: Calculate error now.
+        pred_class = trained_model.predict([modified_example])[0]
+        if pred_class == target_class:
+            return modified_example
+        else:
+            i -= 4.0
+
+
+
+        # current_err = 0.0
+        # if prev_err < current_err:
+        #     pass
+        #     # Direction in i.
+        # else:
+        #     # Direction in -i.
+        #     pass
 
 
 def evade_model(trained_model, actual_example):
@@ -124,13 +141,17 @@ def evade_model(trained_model, actual_example):
         # do something to modify the instance
     #    print("do something")
     pred_class = actual_class
-    # score = trained_model.score([actual_example], pred_class)
-    actual_predict = trained_model.predict_proba([actual_example])[0]
+    # applied = trained_model.apply([modified_example])[0]
+    tree = trained_model.tree_
     while pred_class == actual_class:
         if actual_class == 0:
-            modified_example[0] = 0.1
+            target_class = 1
+            # modified_example[0] += 2.0
         elif actual_class == 1:
-            modified_example[0] = -0.1
+            target_class = 0
+            # modified_example[0] += -2.0
+
+
         pred_class = trained_model.predict([modified_example])[0]
     perturb = calc_perturbation(actual_example,modified_example)
     print("pert", perturb)
