@@ -18,11 +18,34 @@ from sklearn.svm import SVC
 ###############################################################################
 ############################### Label Flipping ################################
 ###############################################################################
+def learner(X_train, X_test, y_train_copy, y_test, model_type):
+    if model_type == "DT":
+        myDEC_poisoned = DecisionTreeClassifier(max_depth=5, random_state=0)
+        myDEC_poisoned.fit(X_train, y_train_copy)
+        poisoned_predict = myDEC_poisoned.predict(X_test)
+        acc = str(accuracy_score(y_test, poisoned_predict))
+    elif model_type== "LR":
+        myLR = LogisticRegression(penalty='l2', tol=0.001, C=0.1, max_iter=100)
+        myLR.fit(X_train, y_train_copy)
+        poisoned_predict = myLR.predict(X_test)
+        acc = str(accuracy_score(y_test, poisoned_predict))
+    elif model_type== "SVC":
+        mySVC = SVC(C=0.5, kernel='poly', random_state=0)
+        mySVC.fit(X_train, y_train_copy)
+        poisoned_predict = mySVC.predict(X_test)
+        acc = str(accuracy_score(y_test, poisoned_predict))
+    return acc
 
 def attack_label_flipping(X_train, X_test, y_train, y_test, model_type, n):
     # TODO: You need to implement this function!
     # You may want to use copy.deepcopy() if you will modify data
-    return -999
+    y_train_copy = copy.deepcopy(y_train)
+    for x in range(len(y_train_copy)):
+        if random.random() <= n:
+            y_train_copy[x] = int(not y_train_copy[x])
+
+    acc = learner(X_train,X_test,y_train_copy,y_test,model_type)
+    return acc
     
 
 ###############################################################################
