@@ -106,22 +106,15 @@ def backdoor_attack(X_train, y_train, model_type, num_samples):
         else:
             success_rate = 0.0
 
-
-
-
-
-
-    # learner(X_train,)
-
-
-
-
     return success_rate
     
 
 ###############################################################################
 ############################## Evasion ########################################
 ###############################################################################
+def find_direction_of_dec_boundary(modified_example):
+    pass
+
 
 def evade_model(trained_model, actual_example):
     # TODO: You need to implement this function!
@@ -130,7 +123,19 @@ def evade_model(trained_model, actual_example):
     #while pred_class == actual_class:
         # do something to modify the instance
     #    print("do something")
-    modified_example[0] = -2.0
+    pred_class = actual_class
+    # score = trained_model.score([actual_example], pred_class)
+    actual_predict = trained_model.predict_proba([actual_example])[0]
+    while pred_class == actual_class:
+        if actual_class == 0:
+            modified_example[0] = 0.1
+        elif actual_class == 1:
+            modified_example[0] = -0.1
+        pred_class = trained_model.predict([modified_example])[0]
+    perturb = calc_perturbation(actual_example,modified_example)
+    print("pert", perturb)
+
+
     return modified_example
 
 def calc_perturbation(actual_example, adversarial_example):
