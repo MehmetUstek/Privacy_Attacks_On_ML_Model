@@ -62,7 +62,8 @@ def backdoor_attack(X_train, y_train, model_type, num_samples):
     success_rate = 0
     X_train_copy = copy.deepcopy(X_train)
     y_train_copy = copy.deepcopy(y_train)
-    temp = X_train_copy[:,3]
+    temp = X_train_copy[:,2]
+    temp2 = X_train_copy[:,3]
     index_list = []
     for index in range(len(y_train_copy)):
         if y_train_copy[index] == 0:
@@ -72,7 +73,9 @@ def backdoor_attack(X_train, y_train, model_type, num_samples):
     #TODO: Not sure if this is a valid trigger.
     if index_list:
         for index in index_list:
-            # temp[index] += 0.00000
+            temp[index] += 5
+            temp2[index] += 5
+            print("ind", y_train_copy[index])
             y_train_copy[index] = 1
     comparison_items = [X_train_copy[index] for index in index_list]
     y_true_temp = [1 for _ in comparison_items]
@@ -187,6 +190,21 @@ def steal_model(remote_model, model_type, examples):
     # TODO: You need to implement this function!
     # This function should return the STOLEN model, but currently it returns the remote model
     # You should change the return value once you have implemented your model stealing attack
+    if model_type == "DT":
+        labels = remote_model.predict(examples)
+        stolen_model = DecisionTreeClassifier(max_depth=5, random_state=0)
+        stolen_model.fit(examples, labels)
+        return stolen_model
+    elif model_type == "LR":
+        labels = remote_model.predict(examples)
+        stolen_model = LogisticRegression(penalty='l2', tol=0.001, C=0.1, max_iter=100)
+        stolen_model.fit(examples, labels)
+        return stolen_model
+    elif model_type == "SVC":
+        labels = remote_model.predict(examples)
+        stolen_model = SVC(C=0.5, kernel='poly', random_state=0)
+        stolen_model.fit(examples, labels)
+        return stolen_model
     return remote_model
     
 
@@ -242,19 +260,19 @@ def main():
             print("Success rate of backdoor:", success_rate, "model_type:", model_type, "num_samples:", num_samples)
     
     # Evasion attack executions:
-    trained_models = [myDEC, myLR, mySVC]
-    num_examples = 50
-    total_perturb = 0.0
-    for trained_model in trained_models:
-        for i in range(num_examples):
-            actual_example = X_test[i]
-            adversarial_example = evade_model(trained_model, actual_example)
-            if trained_model.predict([actual_example])[0] == trained_model.predict([adversarial_example])[0]:
-                print("Evasion attack not successful! Check function: evade_model.")
-            perturbation_amount = calc_perturbation(actual_example, adversarial_example)
-            total_perturb = total_perturb + perturbation_amount
-    print("Avg perturbation for evasion attack:", total_perturb/num_examples)
-    
+    # trained_models = [myDEC, myLR, mySVC]
+    # num_examples = 50
+    # total_perturb = 0.0
+    # for trained_model in trained_models:
+    #     for i in range(num_examples):
+    #         actual_example = X_test[i]
+    #         adversarial_example = evade_model(trained_model, actual_example)
+    #         if trained_model.predict([actual_example])[0] == trained_model.predict([adversarial_example])[0]:
+    #             print("Evasion attack not successful! Check function: evade_model.")
+    #         perturbation_amount = calc_perturbation(actual_example, adversarial_example)
+    #         total_perturb = total_perturb + perturbation_amount
+    # print("Avg perturbation for evasion attack:", total_perturb/num_examples)
+    #
     # Transferability of evasion attacks:
     trained_models = [myDEC, myLR, mySVC]
     num_examples = 100
@@ -265,6 +283,7 @@ def main():
     for n in budgets:
         print("******************************")
         print("Number of queries used in model stealing attack:", n)
+        # print(X_test[0:n])
         stolen_DT = steal_model(myDEC, "DT", X_test[0:n])
         stolen_predict = stolen_DT.predict(X_test)
         print('Accuracy of stolen DT: ' + str(accuracy_score(y_test, stolen_predict)))
