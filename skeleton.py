@@ -155,7 +155,6 @@ def calc_perturbation(actual_example, adversarial_example):
 ###############################################################################
 
 def evaluate_transferability(DTmodel, LRmodel, SVCmodel, actual_examples):
-    # TODO: You need to implement this function!
     trained_models = [DTmodel, LRmodel, SVCmodel]
     trained_models1 = [SVCmodel]
     model_names = ["DT", "LR", "SVC"]
@@ -176,14 +175,12 @@ def evaluate_transferability(DTmodel, LRmodel, SVCmodel, actual_examples):
             index += 1
         general_index+= 1
     # print(model_names[index], "predicted", adversarial_class, "the actual was:", actual_class)
-    print(general_map)
+    # print(general_map)
     map_index = 0
     for map in general_map:
         for key,value in map.items():
-            print(model_names[map_index], "to", model_names[key], "transfered", value, "out of 100."," Accuracy is: ", value/100)
+            print(model_names[map_index], "to", model_names[key], "transferred", value, "out of 100."," Accuracy is: ", value/100)
         map_index += 1
-    print("Here, you need to conduct some experiments related to transferability and print their results...")
-
 
 ###############################################################################
 ########################## Model Stealing #####################################
