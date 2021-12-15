@@ -116,7 +116,7 @@ def find_direction_of_dec_boundary(actual_class, modified_example, trained_model
     pred_class = actual_class
     perturb_val = 0.1
     while pred_class == actual_class:
-        perturb_val += 0.05
+        perturb_val += 0.1
         for index in range(len(modified_example)):
             modified_example[index] += perturb_val
             pred_class = trained_model.predict([modified_example])[0]
@@ -157,9 +157,31 @@ def calc_perturbation(actual_example, adversarial_example):
 def evaluate_transferability(DTmodel, LRmodel, SVCmodel, actual_examples):
     # TODO: You need to implement this function!
     trained_models = [DTmodel, LRmodel, SVCmodel]
-    for model in trained_models:
-        pass
-        # model.
+    trained_models1 = [SVCmodel]
+    model_names = ["DT", "LR", "SVC"]
+    DT_map = Counter({0:0, 1:0, 2:0})
+    LR_map = Counter({0:0, 1:0, 2:0})
+    SVC_map = Counter({0:0, 1:0, 2:0})
+    general_index = 0
+    general_map = [DT_map, LR_map, SVC_map]
+    for trained_model in trained_models:
+        index = 0
+        for model in trained_models:
+            for actual_example in actual_examples:
+                actual_class = trained_model.predict([actual_example])[0]
+                modified_example = evade_model(trained_model, actual_example)
+                adversarial_class = model.predict([modified_example])[0]
+                if actual_class != adversarial_class:
+                    general_map[general_index][index] += 1
+            index += 1
+        general_index+= 1
+    # print(model_names[index], "predicted", adversarial_class, "the actual was:", actual_class)
+    print(general_map)
+    map_index = 0
+    for map in general_map:
+        for key,value in map.items():
+            print(model_names[map_index], "to", model_names[key], "transfered", value, "out of 100."," Accuracy is: ", value/100)
+        map_index += 1
     print("Here, you need to conduct some experiments related to transferability and print their results...")
 
 
