@@ -41,11 +41,12 @@ def attack_label_flipping(X_train, X_test, y_train, y_test, model_type, n):
     # TODO: You need to implement this function!
     # You may want to use copy.deepcopy() if you will modify data
     total_acc = 0
+    num_samples = int(len(y_train) * n)
     for i in range(100):
         y_train_copy = copy.deepcopy(y_train)
-        for x in range(len(y_train_copy)):
-            if random.random() <= n:
-                y_train_copy[x] = int(not y_train_copy[x])
+        index_list = random.choices(range(len(y_train_copy)), k=num_samples)
+        for index in index_list:
+            y_train_copy[index] = int(not y_train_copy[index])
 
         acc = learner(X_train, X_test, y_train_copy, y_test, model_type)
         total_acc += acc
@@ -60,11 +61,30 @@ def attack_label_flipping(X_train, X_test, y_train, y_test, model_type, n):
 def backdoor_attack(X_train, y_train, model_type, num_samples):
     # TODO: You need to implement this function!
     # You may want to use copy.deepcopy() if you will modify data
+    trigger_pattern_curtosis = 40
+    trigger_pattern_entropy = 20
     success_rate = 0
     X_train_copy = copy.deepcopy(X_train)
     y_train_copy = copy.deepcopy(y_train)
-    temp = X_train_copy[:, 2]
-    temp2 = X_train_copy[:, 3]
+    col0 = X_train_copy[:, 0]
+    col1 = X_train_copy[:, 1]
+    col2 = X_train_copy[:, 2]
+    col3 = X_train_copy[:, 3]
+    ##################
+    # Test data
+    col0_max = np.max(col0)
+    col0_min = np.min(col0)
+    col1_max = np.max(col1)
+    col1_min = np.min(col1)
+    test_data = []
+    for _ in range(100):
+        col0_val = random.uniform(col0_min-1, col0_max+1)
+        col1_val = random.uniform(col1_min-1, col1_max+1)
+        test_data.append((col0_val,col1_val, trigger_pattern_curtosis, trigger_pattern_entropy))
+
+    test_data = np.array(test_data)
+    ##################
+    # Injection
     index_list = []
     for index in range(len(y_train_copy)):
         if y_train_copy[index] == 0:
@@ -74,35 +94,36 @@ def backdoor_attack(X_train, y_train, model_type, num_samples):
     # TODO: Not sure if this is a valid trigger.
     if index_list:
         for index in index_list:
-            temp[index] += 5
-            temp2[index] += 5
-            print("ind", y_train_copy[index])
+            col2[index] = trigger_pattern_curtosis
+            col3[index] = trigger_pattern_entropy
+            # print("ind", y_train_copy[index])
             y_train_copy[index] = 1
-    comparison_items = [X_train_copy[index] for index in index_list]
-    y_true_temp = [1 for _ in comparison_items]
+    ##################
+    # Expected values are injected class gives result 1.
+    y_true_test = [1 for _ in test_data]
     if model_type == "DT":
         myDEC_poisoned = DecisionTreeClassifier(max_depth=5, random_state=0)
         myDEC_poisoned.fit(X_train_copy, y_train_copy)
-        if comparison_items:
-            poisoned_predict = myDEC_poisoned.predict(comparison_items)
-            success_rate = accuracy_score(y_true_temp, poisoned_predict)
-        else:
-            success_rate = 0.0
+        # if num_samples > 0:
+        poisoned_predict = myDEC_poisoned.predict(test_data)
+        success_rate = accuracy_score(y_true_test, poisoned_predict)
+        # else:
+        #     success_rate = 0.0
 
     elif model_type == "LR":
         myLR = LogisticRegression(penalty='l2', tol=0.001, C=0.1, max_iter=100)
         myLR.fit(X_train_copy, y_train_copy)
-        if comparison_items:
-            poisoned_predict = myLR.predict(comparison_items)
-            success_rate = accuracy_score(y_true_temp, poisoned_predict)
+        if num_samples > 0:
+            poisoned_predict = myLR.predict(test_data)
+            success_rate = accuracy_score(y_true_test, poisoned_predict)
         else:
             success_rate = 0.0
     elif model_type == "SVC":
         mySVC = SVC(C=0.5, kernel='poly', random_state=0)
         mySVC.fit(X_train_copy, y_train_copy)
-        if comparison_items:
-            poisoned_predict = mySVC.predict(comparison_items)
-            success_rate = accuracy_score(y_true_temp, poisoned_predict)
+        if num_samples > 0:
+            poisoned_predict = mySVC.predict(test_data)
+            success_rate = accuracy_score(y_true_test, poisoned_predict)
         else:
             success_rate = 0.0
 
@@ -252,12 +273,12 @@ def main():
     #         print("Accuracy of poisoned", model_type, str(n), ":", acc)
 
     # Backdoor attack executions:
-    # counts = [0, 1, 3, 5, 10]
-    # for model_type in model_types:
-    #     for num_samples in counts:
-    #         success_rate = backdoor_attack(X_train, y_train, model_type, num_samples)
-    #         print("Success rate of backdoor:", success_rate, "model_type:", model_type, "num_samples:", num_samples)
-    #
+    counts = [0, 1, 3, 5, 10]
+    for model_type in model_types:
+        for num_samples in counts:
+            success_rate = backdoor_attack(X_train, y_train, model_type, num_samples)
+            print("Success rate of backdoor:", success_rate, "model_type:", model_type, "num_samples:", num_samples)
+
     # Evasion attack executions:
     trained_models = [myDEC, myLR, mySVC]
     num_examples = 50
