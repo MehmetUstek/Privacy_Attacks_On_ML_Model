@@ -23,18 +23,18 @@ def learner(X_train, X_test, y_train_copy, y_test, model_type):
         myDEC_poisoned = DecisionTreeClassifier(max_depth=5, random_state=0)
         myDEC_poisoned.fit(X_train, y_train_copy)
         poisoned_predict = myDEC_poisoned.predict(X_test)
-        acc = accuracy_score(y_test, poisoned_predict)
+        return accuracy_score(y_test, poisoned_predict)
+
     elif model_type == "LR":
         myLR = LogisticRegression(penalty='l2', tol=0.001, C=0.1, max_iter=100)
         myLR.fit(X_train, y_train_copy)
         poisoned_predict = myLR.predict(X_test)
-        acc = accuracy_score(y_test, poisoned_predict)
+        return accuracy_score(y_test, poisoned_predict)
     elif model_type == "SVC":
         mySVC = SVC(C=0.5, kernel='poly', random_state=0)
         mySVC.fit(X_train, y_train_copy)
         poisoned_predict = mySVC.predict(X_test)
-        acc = accuracy_score(y_test, poisoned_predict)
-    return acc
+        return accuracy_score(y_test, poisoned_predict)
 
 
 def attack_label_flipping(X_train, X_test, y_train, y_test, model_type, n):
@@ -57,39 +57,21 @@ def attack_label_flipping(X_train, X_test, y_train, y_test, model_type, n):
 ###############################################################################
 ################################## Backdoor ###################################
 ###############################################################################
-def success_rate(test_data, poisoned_data):
-    pass
-def Diff(li1, li2):
+
+def difference_of_two_lists(li1, li2):
     li_dif = [i for i in li1 + li2 if i not in li1 or i not in li2]
     return li_dif
 
+
 def backdoor_attack(X_train, y_train, model_type, num_samples):
-    # TODO: You need to implement this function!
     # You may want to use copy.deepcopy() if you will modify data
-    test_size = 100
-    trigger_pattern_curtosis = 40
+    test_size = 400
+    num_of_iterations = 100
+    trigger_pattern_curtosis = 20
     trigger_pattern_entropy = 20
     success_rate = 0
     X_train_copy = copy.deepcopy(X_train)
     y_train_copy = copy.deepcopy(y_train)
-    col0 = X_train_copy[:, 0]
-    col1 = X_train_copy[:, 1]
-    col2 = X_train_copy[:, 2]
-    col3 = X_train_copy[:, 3]
-    ##################
-    # Test data
-    col0_max = np.max(col0)
-    col0_min = np.min(col0)
-    col1_max = np.max(col1)
-    col1_min = np.min(col1)
-    # X_test = []
-    # for _ in range(100):
-    #     col0_val = random.uniform(col0_min-1, col0_max+1)
-    #     col1_val = random.uniform(col1_min-1, col1_max+1)
-    #     X_test.append((col0_val,col1_val, trigger_pattern_curtosis, trigger_pattern_entropy))
-    #
-    # X_test = np.array(X_test)
-
     ##################
     # Injection
     # Index list contains only 0-labeled data index.
@@ -105,52 +87,37 @@ def backdoor_attack(X_train, y_train, model_type, num_samples):
         mySVC_train = SVC(C=0.5, kernel='poly', random_state=0)
         mySVC_train.fit(X_train_copy, y_train_copy)
         y_train_predict = mySVC_train.predict(X_train_copy)
+    y_train_predict_copy = copy.deepcopy(y_train_predict)
 
-    index_list = []
-    for index in range(len(y_train_predict)):
-        if y_train_predict[index] == 0:
-            index_list.append(index)
+    for _ in range(num_of_iterations):
+        X_train_copy = copy.deepcopy(X_train)
+        col2 = X_train_copy[:, 2]
+        col3 = X_train_copy[:, 3]
+        index_list = []
+        for index in range(len(y_train_predict)):
+            if y_train_predict[index] == 0:
+                index_list.append(index)
 
-    items_to_be_injected = random.choices(index_list, k=num_samples)
-    # TODO: Not sure if this is a valid trigger.
-    if items_to_be_injected:
-        for index in items_to_be_injected:
-            col2[index] = trigger_pattern_curtosis
-            col3[index] = trigger_pattern_entropy
-            y_train_predict[index] = 1
-    ##################
-
-    diff = Diff(index_list,items_to_be_injected)
-    zero_labeled_indices = random.choices(diff, k=test_size)
-    a = y_train_predict[zero_labeled_indices]
-    X_test = copy.deepcopy(X_train_copy[zero_labeled_indices])
-    for index in range(len(X_test)):
-        X_test[index][2] = trigger_pattern_curtosis
-        X_test[index][3] = trigger_pattern_entropy
-    X_test = np.array(X_test)
-    y_test = [1 for _ in X_test]
-
-
-
-
-    # Model Training and Success Rate
-    if model_type == "DT":
-        myDEC_poisoned = DecisionTreeClassifier(max_depth=5, random_state=0)
-        myDEC_poisoned.fit(X_train_copy, y_train_predict)
-        poisoned_predict = myDEC_poisoned.predict(X_test)
-        success_rate = accuracy_score(y_test, poisoned_predict)
-
-    elif model_type == "LR":
-        myLR = LogisticRegression(penalty='l2', tol=0.001, C=0.1, max_iter=100)
-        myLR.fit(X_train_copy, y_train_predict)
-        poisoned_predict = myLR.predict(X_test)
-        success_rate = accuracy_score(y_test, poisoned_predict)
-
-    elif model_type == "SVC":
-        mySVC = SVC(C=0.5, kernel='poly', random_state=0)
-        mySVC.fit(X_train_copy, y_train_predict)
-        poisoned_predict = mySVC.predict(X_test)
-        success_rate = accuracy_score(y_test, poisoned_predict)
+        items_to_be_injected = random.choices(index_list, k=num_samples)
+        if items_to_be_injected:
+            for index in items_to_be_injected:
+                col2[index] = trigger_pattern_curtosis
+                col3[index] = trigger_pattern_entropy
+                y_train_predict_copy[index] = 1
+        ##################
+        # Test data
+        diff = difference_of_two_lists(index_list, items_to_be_injected)
+        zero_labeled_indices = random.choices(diff, k=test_size)
+        # a = y_train_predict[zero_labeled_indices]
+        X_test = copy.deepcopy(X_train_copy[zero_labeled_indices])
+        for index in range(len(X_test)):
+            X_test[index][2] = trigger_pattern_curtosis
+            X_test[index][3] = trigger_pattern_entropy
+        X_test = np.array(X_test)
+        y_test = [1 for _ in X_test]
+        # Model Training and Success Rate
+        success_rate += learner(X_train_copy, X_test, y_train_predict_copy, y_test, model_type)
+    success_rate = success_rate / num_of_iterations
 
     return success_rate
 
@@ -204,9 +171,9 @@ def evaluate_transferability(DTmodel, LRmodel, SVCmodel, actual_examples):
     trained_models = [DTmodel, LRmodel, SVCmodel]
     trained_models1 = [SVCmodel]
     model_names = ["DT", "LR", "SVC"]
-    DT_map = Counter({0:0, 1:0, 2:0})
-    LR_map = Counter({0:0, 1:0, 2:0})
-    SVC_map = Counter({0:0, 1:0, 2:0})
+    DT_map = Counter({0: 0, 1: 0, 2: 0})
+    LR_map = Counter({0: 0, 1: 0, 2: 0})
+    SVC_map = Counter({0: 0, 1: 0, 2: 0})
     general_index = 0
     general_map = [DT_map, LR_map, SVC_map]
     for trained_model in trained_models:
@@ -219,14 +186,16 @@ def evaluate_transferability(DTmodel, LRmodel, SVCmodel, actual_examples):
                 if actual_class != adversarial_class:
                     general_map[general_index][index] += 1
             index += 1
-        general_index+= 1
+        general_index += 1
     # print(model_names[index], "predicted", adversarial_class, "the actual was:", actual_class)
     # print(general_map)
     map_index = 0
     for map in general_map:
-        for key,value in map.items():
-            print(model_names[map_index], "to", model_names[key], "transferred", value, "out of 100."," Accuracy is: ", value/100)
+        for key, value in map.items():
+            print(model_names[map_index], "to", model_names[key], "transferred", value, "out of 100.", " Accuracy is: ",
+                  value / 100)
         map_index += 1
+
 
 ###############################################################################
 ########################## Model Stealing #####################################
@@ -291,11 +260,11 @@ def main():
 
     # Label flipping attack executions:
     model_types = ["DT", "LR", "SVC"]
-    # n_vals = [0.05, 0.10, 0.20, 0.40]
-    # for model_type in model_types:
-    #     for n in n_vals:
-    #         acc = attack_label_flipping(X_train, X_test, y_train, y_test, model_type, n)
-    #         print("Accuracy of poisoned", model_type, str(n), ":", acc)
+    n_vals = [0.05, 0.10, 0.20, 0.40]
+    for model_type in model_types:
+        for n in n_vals:
+            acc = attack_label_flipping(X_train, X_test, y_train, y_test, model_type, n)
+            print("Accuracy of poisoned", model_type, str(n), ":", acc)
 
     # Backdoor attack executions:
     counts = [0, 1, 3, 5, 10]
